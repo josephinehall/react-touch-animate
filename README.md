@@ -1,6 +1,11 @@
 
+#react-touch-animate
 
-#Setup
+A little Reveal.js presentation talking about React and creating touch and animation components.
+
+Given at #SYDCSS in October 2014
+
+##Setup
 
 1. Install [Node.js](http://nodejs.org/)
 
