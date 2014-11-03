@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Reacting to touch and animation</title>
+
+		<meta name="description" content="Techniques for responding to touch and creating animations in a React.js app">
+		<meta name="author" content="Josephine hall">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/solarized.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/tomorrow-night-eighties.css">
+
+		<style>
+		pre code.hljs {
+			padding: 0 5px;
+		}
+		code.hljs:first-child {
+			padding-top:5px;
+		}
+		code.hljs:last-child {
+			padding-bottom:5px;
+		}
+		</style>
+
+		<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+		<script>
+			if( window.location.search.match( /print-pdf/gi ) ) {
+				var link = document.createElement( 'link' );
+				link.rel = 'stylesheet';
+				link.type = 'text/css';
+				link.href = 'css/print/pdf.css';
+				document.getElementsByTagName( 'head' )[0].appendChild( link );
+			}
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+				<section>
+					<h1>Reacting to touch and animation</h1>
+					<p>
+						<small><a href="http://jojo.today">Josephine Hall</a> / <a href="http://twitter.com/jojoconstance">@jojoconstance</a></small>
+					</p>
+					<p>
+						<small>Reppin' <a href="http://www.icelab.com.au">Icelab</a> and the ACT</small>
+					</p>
+					<aside class="notes">
+						I'm going to be talking today about some techniques we at Icelab used recently on a React project dealing with css animations, and responding to user touch events.
+					</aside>
+				</section>
+
+				<section>
+					<h2>React...</h2>
+					<p>User interfaces, components and state</p>
+
+					<aside class="notes">
+						<p>So what do you need to know about React?</p>
+						<ul>
+							<li>It's a javascript library for building user interfaces.</li>
+							<li>It has its own syntax extension called JSX, which looks like js mixed with xml</li>
+							<li>A React app is made up of components, which reprsent a contained piece of UI functionality</li>
+							<li>Each component is responsible for determining how it will be rendered, what data it will use, and what it will do.</li>
+							<li>The *state* of a component is a key concept - modifying the state changes how a component is rendered.</li>
+							</ul>
+					</aside>
+				</section>
+
+				<section>
+<pre><code class="javascript">var Button = React.createClass({
+  render: function() {
+    if (this.state.disabled){
+      //don't display the button
+    } else {
+      return (
+</code><code class="xml">        &lt;div onClick={this._getLocation} className="find-button">
+          &lt;span className="find-button__text">Nearby&lt;/span>
+          &lt;i className="find-button__icon"/>
+        &lt;/div>
+</code><code class="javascript">      );
+    }
+  },
+  _getLocation: function() {
+    AppDispatcher.trigger("geolocator:request");
+    this.setState({
+      disabled: true
+    });
+  }
+});
+
+React.renderComponent(
+</code><code class="xml">  &lt;Button />
+</code><code class="javascript">  document.body
+);
+
+</code></pre>
+					<aside class="notes">
+						<p>In this component responding to user input (via _getLoaction) modifies the state of the component, triggering a re-render. React components *know* their data and can figure out their state rather than inferring it from the DOM.</p>
+
+						<p>For me, it was helpful to think of components as objects (object oriented programming), rather than a series of maniuplations on dom elements.</p>
+
+						<p>A good example is an image carousel - when you create the carousel, you pass in the images that will be rendered as a property. The component then takes that data and figures out how it needs to be rendered. This might include things like calculating the width of wrapper divs based on the number of imaged you passed in.</p>
+					</aside>
+				</section>
+
+				<section>
+					<h2>Can't touch this</h2><h2>(DOM)</h2>
+
+					<aside class="notes">
+						Not strictly true. But best to avoid as much as possible.
+
+						What if you want a way to add different classes to a component to respond to input from the user, like touching.
+					</aside>
+				</section>
+
+				<section>
+				<p>JSX block:</p>
+<pre><code class="html">&lt;div>
+</code><code class="xml">     &lt;TouchPreview previewClassName="link--preview">
+</code><code class="html">         &lt;a href="/foo">
+            Hello
+        &lt;/a>
+</code><code class="xml">     &lt;/TouchPreview>
+</code><code class="html"> &lt;/div>
+</code></pre>
+<p>CSS:</p>
+<pre><code class="css">a {
+    color: blue;
+}
+
+.link--preview a {
+    color: red;
+    text-decoration: underline;
+}
+</code></pre>
+				</section>
+
+				<section>
+<pre><code class="javascript">TouchPreview = React.createClass({
+//sets the default preview class name if not passed in by this.props
+  getDefaultProps: function() {
+    return {
+      previewClassName: "preview"
+    };
+  },
+  getInitialState: function() {
+    return {
+      preview: false
+    };
+  },
+  render: function() {
+//extend the built in React events to include our behaviour
+    var props = _.extend({
+      onTouchStart: this._startPreview,
+      onMouseOver:  this._startPreview,
+      onTouchEnd:   this._endPreview,
+      onTouchMove:  this._endPreview,
+      onMouseOut:   this._endPreview
+    }, this.props);
+//set the class property to be our preview class
+    props.className = (this.state.preview) ?
+    									this.props.previewClassName : "";
+//clear out the props so that the class can be different next time
+    delete props.previewClassName;
+//return a span with all these properties
+// set on it, preserving the child elements
+    return React.DOM.span(props, this.props.children);
+  },
+  _startPreview: function(e) {
+    this.setState({
+      preview: true
+    });
+  },
+  _endPreview: function(e) {
+    this.setState({
+      preview: false
+    });
+  }
+});
+</code></pre>
+					<aside class="notes">
+						Since JSX is JavaScript, identifiers such as class and for are discouraged as XML attribute names. Instead, React DOM components expect attributes like className and htmlFor, respectively.
+					</aside>
+				</section>
+
+				<section>
+					<img src="/images/touch.gif" />
+				</section>
+
+				<section>
+					<p>Animating a list that might get re-rendered, say what??</p>
+
+				<aside class="notes">
+					<p>We wanted to make nice smooth transitions on large nested lists that could be re-rendered while they’re animated</p>
+				</aside>
+				</section>
+				<section>
+				<p>Using it...</p>
+<pre><code class="javascript">_renderResultType: function(type) {
+var results = this._renderResults(this.props.latLng, type);
+return (
+</code><code class="xml">  &lt;AnimationItem key={type+"group"} prefix="result-group">
+    &lt;div className="results-list-body__group">
+      {results}
+    &lt;/div>
+  &lt;/AnimationItem>
+</code><code class="javascript">  );
+}</code></pre>
+				</section>
+				<section>
+<pre><code class="javascript">var AnimationItem = React.createClass({
+  componentWillEnter: function(done) {
+    this.el = this.getDOMNode();
+    this.$el = $(this.el);
+    // Before state applied immediately
+    this.$el.addClass(this.props.prefix+"-enter-before");
+    // Ensure parent class changes propagate in time
+    requestAnimationFrame(function() {
+      this.$el
+        .removeClass(this.props.prefix+"-enter-before")
+        .addClass(this.props.prefix+"-enter");
+
+      requestAnimationFrame(function() {
+        getComputedStyle(this.el);
+        this.$el.addClass(this.props.prefix+"-enter-active");
+        Arrival.complete(this.$el, done);
+      }.bind(this));
+    }.bind(this));
+  },
+  componentDidEnter: function() {
+    this.$el
+      .removeClass(this.props.prefix+"-enter")
+      .removeClass(this.props.prefix+"-enter-active");
+  },
+  componentWillLeave: function(done) {
+    this.el = this.getDOMNode();
+    this.$el = $(this.el);
+    // Before state applied immediately
+    this.$el.addClass(this.props.prefix+"-leave-before");
+    requestAnimationFrame(function() {
+      this.$el
+        .removeClass(this.props.prefix+"-leave-before")
+        .addClass(this.props.prefix+"-leave");
+      requestAnimationFrame(function() {
+        this.$el.addClass(this.props.prefix+"-leave-active");
+        Arrival.complete(this.$el, done);
+      }.bind(this));
+    }.bind(this));
+  },
+  componentDidLeave: function() {
+    this.$el
+      .removeClass(this.props.prefix+"-leave")
+      .removeClass(this.props.prefix+"-leave-active");
+  },
+  render: function() {
+    return (
+      React.DOM.div(
+        {className: "animation-item", key: this.props.key},
+        this.props.children
+      )
+    )
+  }
+});
+</code></pre>
+
+					<aside class="notes">
+						<p>ReactTransitionGroup - gives us the extra lifecycle hooks</p>
+						<p>We have to do multiple requestAnimationFrame calls to make sure that the browser has rendered class attributes further up the tree that we’re relying on. In this app we add a little .direction--up or .direction--down class to the layout block to signify if you’re moving up or down the perceived navigation stack as well.</p>
+						<p>jQuery! We needed a way to actually manipulate the classes. We only had to use it in two or three places across the whole app - once you get used to how React works you find you don't really need it</p>
+						<p>If we made this again, we'd probably give javascript specified animations a go.</p>
+
+					</aside>
+				</section>
+
+				<section>
+					<img src="/images/resultslist.gif" />
+				</section>
+
+				<section>
+					<p><a href="https://gist.github.com/makenosound/ace158cf3e9f070e59d7">TouchPreview component</a></p>
+					<p><a href="http://codepen.io/makenosound/pen/rstvx">Animation Item codepen</a></p>
+					<p>All due credit for these goes go my esteemed colleague Max (<a href="https://twitter.com/makenosound">@makenosound</a>), he knows a thing or two</p>
+				</section>
+
+
+
+
+
+
+			</div>
+
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Parallax scrolling
+				// parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+				// parallaxBackgroundSize: '2100px 900px',
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
