@@ -30,6 +30,8 @@ Given at #SYDCSS in October 2014
 
    You can change the port by using `grunt serve --port 8001`.
 
+Press 's' to bring up speaker notes
+
 ### Folder Structure
 - **css/** Core styles without which the project does not function
 - **js/** Like above but for JavaScript
